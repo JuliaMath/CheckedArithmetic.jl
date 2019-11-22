@@ -1,0 +1,13 @@
+name = "CheckedArithmetic"
+uuid = "2c4a1fb8-30c1-4c71-8b84-dff8d59868ee"
+authors = ["Tim Holy <tim.holy@gmail.com>"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
