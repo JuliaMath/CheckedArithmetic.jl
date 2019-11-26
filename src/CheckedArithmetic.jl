@@ -106,12 +106,16 @@ macro check(expr)
     for i = 2:length(expr.args)
         safeexpr.args[i] = Expr(:call, :(CheckedArithmetic.safearg), expr.args[i])
     end
-    return esc(quote
-        val = $expr
-        valcmp = CheckedArithmetic.safeconvert(typeof(val), $safeexpr)
-        @test val == valcmp
-        return val
-    end)
+    return quote
+        local val = $(esc(expr))
+        local valcmp = CheckedArithmetic.safeconvert(typeof(val), $(esc(safeexpr)))
+        if ismissing(val) && ismissing(valcmp)
+            val
+        else
+            val == valcmp || error(val, " is not equal to ", valcmp)
+            val
+        end
+    end
 end
 
 """
@@ -172,12 +176,12 @@ safearg(ref::Ref) = Ref(safearg(ref[]))
 safearg(d::Dict) = Dict(safearg(p) for p in d)
 safearg(d::Base.EnvDict) = d
 safearg(d::Base.ImmutableDict) = Base.ImmutableDict(safearg(p) for p in d)
-safearg(d::Iterators.Pairs) = Iterators.Pairs(safearg(p) for p in d)
+safearg(d::Iterators.Pairs) = Iterators.Pairs(safearg(d.data), d.itr)
 safearg(d::IdDict) = IdDict(safearg(p) for p in d)
 safearg(d::WeakKeyDict) = WeakKeyDict(k=>safearg(v) for (k, v) in d)  # do not convert keys
 ## AbstractSets
-safearg(s::Set) = Set(f(x) for x in s)
-safearg(s::Base.IdSet) = Base.IdSet(f(x) for x in s)
+safearg(s::Set) = Set(safearg(x) for x in s)
+safearg(s::Base.IdSet) = Base.IdSet(safearg(x) for x in s)
 safearg(s::BitSet) = s
 
 # Other common types
@@ -243,6 +247,7 @@ Base.@pure accumulatortype(op::Function, T1::Type, T2::Type, T3::Type...) =
     accumulatortype(op, promote_type(T1, T2, T3...))
 Base.@pure accumulatortype(T1::Type, T2::Type, T3::Type...) =
     accumulatortype(*, T1, T2, T3...)
+accumulatortype(::Type{T}) where T = accumulatortype(*, T)
 
 const SignPreserving = Union{typeof(+), typeof(*)}
 const ArithmeticOp = Union{SignPreserving,typeof(-)}
