@@ -196,7 +196,9 @@ safearg(chan::AbstractChannel) = chan
 safearg(i::Base.AbstractCartesianIndex) = i
 safearg(i::Base.UUID) = i
 safearg(cmd::Base.AbstractCmd) = cmd
-safearg(lock::Base.AbstractLock) = lock
+if isdefined(Base, :AbstractLock)
+    safearg(lock::Base.AbstractLock) = lock
+end
 safearg(f::Function) = f
 safearg(io::IO) = io
 safearg(m::Module) = m
