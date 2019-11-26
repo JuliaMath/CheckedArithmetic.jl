@@ -8,6 +8,14 @@ using Test
     minus(x, y) = x - y
 end
 
+function sumsquares(A::AbstractArray)
+    s = zero(accumulatortype(eltype(A)))
+    for a in A
+        s += acc(a)^2
+    end
+    return s
+end
+
 @testset "CheckedArithmetic.jl" begin
     @testset "@checked" begin
         @test @checked(abs(Int8(-2))) === Int8(2)
@@ -69,5 +77,7 @@ end
         @test acc(-, 0x02) === 2
         @test accumulatortype(-, UInt8) === Int
         @test accumulatortype(*, Int16, Float16) === Float64
+
+        @test sumsquares(0x00:0xff) == sumsquares(0:255)
     end
 end

@@ -243,6 +243,7 @@ Base.@pure accumulatortype(op::Function, T1::Type, T2::Type, T3::Type...) =
     accumulatortype(op, promote_type(T1, T2, T3...))
 Base.@pure accumulatortype(T1::Type, T2::Type, T3::Type...) =
     accumulatortype(*, T1, T2, T3...)
+accumulatortype(::Type{T}) where T = accumulatortype(*, T)
 
 const SignPreserving = Union{typeof(+), typeof(*)}
 const ArithmeticOp = Union{SignPreserving,typeof(-)}
