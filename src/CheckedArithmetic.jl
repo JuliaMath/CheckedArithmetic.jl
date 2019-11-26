@@ -99,20 +99,22 @@ macro checked(expr)
     return esc(replace_checked!(expr))
 end
 
-macro check(expr)
+macro check(expr, kws...)
     isexpr(expr, :call) || error("expected :call expression, got ",
                                  isa(expr, Expr) ? QuoteNode(expr.head) : typeof(expr))
     safeexpr = copy(expr)
     for i = 2:length(expr.args)
         safeexpr.args[i] = Expr(:call, :(CheckedArithmetic.safearg), expr.args[i])
     end
+    cmpexpr = isempty(kws) ? :(val == valcmp || error(val, " is not equal to ", valcmp)) :
+                             :(isapprox(val, valcmp; $(esc(kws...))) || error(val, " is not approximately equal to ", valcmp))
     return quote
         local val = $(esc(expr))
         local valcmp = CheckedArithmetic.safeconvert(typeof(val), $(esc(safeexpr)))
         if ismissing(val) && ismissing(valcmp)
             val
         else
-            val == valcmp || error(val, " is not equal to ", valcmp)
+            $cmpexpr
             val
         end
     end
@@ -146,6 +148,8 @@ safearg_type(::Type{Float64})  = Float64
 safearg_type(::Type{Float32})  = Float64
 safearg_type(::Type{Float16})  = Float64
 safearg_type(::Type{T}) where T<:Base.TwicePrecision = T
+
+safearg_type(::Type{<:Rational}) = Float64
 
 """
     xsafe = CheckedArithmetic.safearg(x)
