@@ -70,6 +70,14 @@ end
                         now()]
             @test @check(identity(item)) === item
         end
+
+        # Roundoff error
+        function diff2from1(s)
+            s2 = copy(s + s)
+            return 1 - s2
+        end
+        @test_throws ErrorException @check diff2from1(1//3)
+        @test (@check diff2from1(1//3) atol=1e-12) == 1//3
     end
 
     @testset "acc" begin

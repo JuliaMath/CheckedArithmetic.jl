@@ -50,6 +50,11 @@ It then tests whether the result obtained from the "safe" arguments is consisten
 the result obtained from `a` and `b`.
 If the two differ to within the precision of the "ordinary" (unsafe) result, an
 error is thrown.
+Optionally, you can supply keywords accepted by `isapprox`:
+
+```julia
+@check foo(a) atol=1e-12
+```
 
 Packages can specialize `CheckedArithmetic.safearg` to control how `asafe` and `bsafe`
 are generated. To guard against oversights, `safearg` must be explicitly defined for
