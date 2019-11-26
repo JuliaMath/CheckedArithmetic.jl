@@ -1,5 +1,5 @@
 using CheckedArithmetic
-using Test
+using Test, Dates
 
 @test isempty(detect_ambiguities(CheckedArithmetic, Base, Core))
 
@@ -49,7 +49,7 @@ end
         @test_throws OverflowError minus(0x20, 0x30)
     end
 
-    @testset "check" begin
+    @testset "@check" begin
         @test @check(3+5) == 8
         @test_throws InexactError @check(0xf0+0x15)
         @test @check([3]+[5]) == [8]
@@ -62,10 +62,10 @@ end
         @test @check(times2(Dict("a"=>7))) == Dict("a"=>14)
         @test_throws InexactError @check(times2(Dict("a"=>0xf0)))
         for item in Any["hi", :hi, (3,), (silly="hi",), trues(3), [true], 1:3, 1:2:5,
-                        LinRange(1, 3, 3), StepRangeLen(1.0, 3.0, 3), 0x01:0x03, Ref(2),
+                        LinRange(1, 3, 3), StepRangeLen(1.0, 3.0, 3), 0x01:0x03,
                         pairs((silly="hi",)), Set([1,3]), BitSet(7), nothing, missing,
                         Some(nothing), 'c', MIME("text/plain"), IOBuffer(), r"\d+",
-                        Channel(), CartesianIndex(1, 3), Base.UUID(0), `ls`,
+                        Channel(7), CartesianIndex(1, 3), Base.UUID(0), `ls`,
                         sum, Base, Val(3), Task(()->1), Base.Order.Forward, Timer(0.1),
                         now()]
             @test @check(identity(item)) === item
