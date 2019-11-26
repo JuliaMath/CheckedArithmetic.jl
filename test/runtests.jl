@@ -57,7 +57,7 @@ end
                         LinRange(1, 3, 3), StepRangeLen(1.0, 3.0, 3), 0x01:0x03, Ref(2),
                         pairs((silly="hi",)), Set([1,3]), BitSet(7), nothing, missing,
                         Some(nothing), 'c', MIME("text/plain"), IOBuffer(), r"\d+",
-                        Channel(), CartesianIndex(1, 3), Base.UUID(0), `ls`, ReentrantLock(),
+                        Channel(), CartesianIndex(1, 3), Base.UUID(0), `ls`,
                         sum, Base, Val(3), Task(()->1), Base.Order.Forward, Timer(0.1),
                         now()]
             @test @check(identity(item)) === item
