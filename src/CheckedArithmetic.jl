@@ -1,33 +1,39 @@
 module CheckedArithmetic
 
+using CheckedArithmeticCore
+import CheckedArithmeticCore: safearg_type, safearg, safeconvert, accumulatortype, acc
+
 using Base.Meta: isexpr
-using Test
 using LinearAlgebra: Factorization, UniformScaling
 using Random: AbstractRNG
 using Dates
 
-export @checked, @check, accumulatortype, acc
+export @checked, @check
+export accumulatortype, acc # re-export
 
-# + and - are not listed because of the unary/binary issues
-const opcheck = Dict(:abs => :(Base.Checked.checked_abs),
-                     :+ => :(Base.Checked.checked_add),
-                     :- => :(Base.Checked.checked_sub),
-                     :* => :(Base.Checked.checked_mul),
-                     :÷ => :(Base.Checked.checked_div),
-                     :rem => :(Base.Checked.checked_rem),
-                     :fld => :(Base.Checked.checked_fld),
-                     :mod => :(Base.Checked.checked_mod),
-                     :cld => :(Base.Checked.checked_cld),
-                     )
+const op_checked = Dict(
+    Symbol("unary-") => :(Base.Checked.checked_neg),
+    :abs => :(Base.Checked.checked_abs),
+    :+   => :(Base.Checked.checked_add),
+    :-   => :(Base.Checked.checked_sub),
+    :*   => :(Base.Checked.checked_mul),
+    :÷   => :(Base.Checked.checked_div),
+    :div => :(Base.Checked.checked_div),
+    :%   => :(Base.Checked.checked_rem),
+    :rem => :(Base.Checked.checked_rem),
+    :fld => :(Base.Checked.checked_fld),
+    :mod => :(Base.Checked.checked_mod),
+    :cld => :(Base.Checked.checked_cld),
+    )
 
-function replace_checked!(expr::Expr)
+function replace_op!(expr::Expr, op_map::Dict)
     if expr.head == :call
         f, len = expr.args[1], length(expr.args)
         op = isexpr(f, :.) ? f.args[2].value : f # handle module-scoped functions
         if op === :+ && len == 2                 # unary +
             # no action required
         elseif op === :- && len == 2             # unary -
-            op = :(Base.Checked.checked_neg)
+            op = get(op_map, Symbol("unary-"), op)
             if isexpr(f, :.)
                 f.args[2].value = op
                 expr.args[1] = f
@@ -35,7 +41,7 @@ function replace_checked!(expr::Expr)
                 expr.args[1] = op
             end
         else                                     # arbitrary call
-            op = get(opcheck, op, op)
+            op = get(op_map, op, op)
             if isexpr(f, :.)
                 f.args[2].value = op
                 expr.args[1] = f
@@ -45,13 +51,13 @@ function replace_checked!(expr::Expr)
         end
         for a in Iterators.drop(expr.args, 1)
             if isa(a, Expr)
-                replace_checked!(a)
+                replace_op!(a, op_map)
             end
         end
     else
         for a in expr.args
             if isa(a, Expr)
-                replace_checked!(a)
+                replace_op!(a, op_map)
             end
         end
     end
@@ -96,7 +102,7 @@ ERROR: OverflowError: 16 - 32 overflowed for type UInt8
 macro checked(expr)
     isa(expr, Expr) || return expr
     expr = copy(expr)
-    return esc(replace_checked!(expr))
+    return esc(replace_op!(expr, op_checked))
 end
 
 macro check(expr, kws...)
@@ -120,15 +126,9 @@ macro check(expr, kws...)
     end
 end
 
-"""
-    newT = CheckedArithmetic.safearg_type(::Type{T})
 
-Return a "reasonably safe" type `newT` for computation with numbers of type `T`.
-For example, for `UInt8` one might return `UInt128`, because one is much less likely
-to overflow with `UInt128`.
-"""
-function safearg_type end
-
+# safearg_type
+# ------------
 safearg_type(::Type{BigInt})  = BigInt
 safearg_type(::Type{Int128})  = Int128
 safearg_type(::Type{Int64})   = Int128
@@ -151,15 +151,9 @@ safearg_type(::Type{T}) where T<:Base.TwicePrecision = T
 
 safearg_type(::Type{<:Rational}) = Float64
 
-"""
-    xsafe = CheckedArithmetic.safearg(x)
 
-Return a variant `xsafe` of `x` that is "reasonably safe" for non-overflowing computation.
-For numbers, this uses [`CheckedArithmetic.safearg_type`](@ref).
-For containers and other non-number types, specialize `safearg` directly.
-"""
-safearg(x::Number) = convert(safearg_type(typeof(x)), x)
-
+# safearg
+#--------
 # Containers
 safearg(t::Tuple) = map(safearg, t)
 safearg(t::NamedTuple) = map(safearg, t)
@@ -219,42 +213,17 @@ safearg(t::Dates.AbstractTime) = t
 safearg(t::Dates.AbstractDateToken) = t
 
 
-"""
-    xc = safeconvert(T, x)
-
-Convert `x` to type `T`, "safely." This is designed for comparison to results computed by
-[`@check`](@ref), i.e., for arguments converted by [`CheckedArithmetic.safearg`](@ref).
-"""
-safeconvert(::Type{T}, x) where T = convert(T, x)
-
+# safeconvert
+# -----------
 safeconvert(::Type{T}, x) where T<:Integer = round(T, x)
 safeconvert(::Type{T}, x) where T<:AbstractFloat = T(x)
 safeconvert(::Type{AA}, A::AbstractArray) where AA<:AbstractArray{T} where T<:Integer = round.(T, A)
 
 
-"""
-    Tnew = accumulatortype(op, T1, T2, ...)
-    Tnew = accumulatortype(T1, T2, ...)
-
-Return a type `Tnew` suitable for accumulation (reduction) of elements of type `T` under
-operation `op`.
-
-# Examples
-
-```jldoctest
-julia> accumulatortype(+, UInt8)
-$UInt
-
-julia> accumulatortype
-"""
-Base.@pure accumulatortype(op::Function, T1::Type, T2::Type, T3::Type...) =
-    accumulatortype(op, promote_type(T1, T2, T3...))
-Base.@pure accumulatortype(T1::Type, T2::Type, T3::Type...) =
-    accumulatortype(*, T1, T2, T3...)
-accumulatortype(::Type{T}) where T = accumulatortype(*, T)
-
+# accumulatortype
+# ---------------
 const SignPreserving = Union{typeof(+), typeof(*)}
-const ArithmeticOp = Union{SignPreserving,typeof(-)}
+const ArithmeticOp = Union{SignPreserving, typeof(-)}
 
 accumulatortype(::ArithmeticOp, ::Type{BigInt})    = BigInt
 accumulatortype(::ArithmeticOp, ::Type{Int128})    = Int128
@@ -278,13 +247,5 @@ accumulatortype(::ArithmeticOp, ::Type{BigFloat})  = BigFloat
 accumulatortype(::ArithmeticOp, ::Type{Float64})   = Float64
 accumulatortype(::ArithmeticOp, ::Type{Float32})   = Float64
 accumulatortype(::ArithmeticOp, ::Type{Float16})   = Float64
-
-"""
-    xacc = acc(x)
-
-Convert `x` to type [`accumulatortype`](@ref)`(typeof(x))`.
-"""
-acc(x) = convert(accumulatortype(typeof(x)), x)
-acc(f::F, x) where F<:Function = convert(accumulatortype(f, typeof(x)), x)
 
 end # module
