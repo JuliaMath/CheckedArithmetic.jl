@@ -1,5 +1,10 @@
-using CheckedArithmetic
-using Test, Dates
+
+# Explicitly use `import` instead of `using` to make sure there is no problem with scoping.
+import CheckedArithmetic
+import CheckedArithmetic: @checked, @check, acc, accumulatortype
+using Pkg, Test, Dates
+
+Pkg.test("CheckedArithmeticCore")
 
 @test isempty(detect_ambiguities(CheckedArithmetic, Base, Core))
 
@@ -34,8 +39,12 @@ end
         @test_throws OverflowError @checked(0x10*0x10)
         @test @checked(7 ÷ 2) === 3
         @test_throws DivideError @checked(typemin(Int8)÷Int8(-1))
+        @test @checked(div(0x7, 0x2)) === 0x3
+        @test_throws DivideError @checked(div(typemin(Int16), Int16(-1)))
         @test @checked(rem(typemin(Int8), Int8(-1))) === Int8(0)
         @test_throws DivideError @checked(rem(typemax(Int8), Int8(0)))
+        @test @checked(typemin(Int16) % Int16(-1)) === Int16(0)
+        @test_throws DivideError @checked(typemax(Int16) % Int16(0))
         @test @checked(fld(typemax(Int8), Int8(-1))) === -typemax(Int8)
         @test_throws DivideError @checked(fld(typemin(Int8), Int8(-1)))
         @test @checked(mod(typemax(Int8), Int8(1))) === Int8(0)
@@ -76,8 +85,8 @@ end
             s2 = copy(s + s)
             return 1 - s2
         end
-        @test_throws ErrorException @check diff2from1(1//3)
-        @test (@check diff2from1(1//3) atol=1e-12) == 1//3
+        @test_throws ErrorException @check diff2from1(Rational{Int64}(1, 3))
+        @test (@check diff2from1(Rational{Int64}(1, 3)) atol=1e-12) == 1//3
     end
 
     @testset "acc" begin
