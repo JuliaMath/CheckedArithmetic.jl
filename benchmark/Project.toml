@@ -1,0 +1,6 @@
+[deps]
+BenchmarkCI = "20533458-34a3-403d-a444-e18f38190b5b"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CheckedArithmetic = "2c4a1fb8-30c1-4c71-8b84-dff8d59868ee"
+CheckedArithmeticCore = "740b204e-26e5-40b1-866a-9c367e60c4b6"
+PkgBenchmark = "32113eaa-f34f-5b0d-bd6c-c81e245fc73d"

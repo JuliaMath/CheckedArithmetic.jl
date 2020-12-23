@@ -1,0 +1,38 @@
+name: Run benchmarks
+
+on:
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+  workflow_dispatch:
+jobs:
+  Benchmark:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'run benchmark')
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+      - name: Cache artifacts
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-artifacts
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-test-${{ env.cache-name }}-
+            ${{ runner.os }}-test-
+            ${{ runner.os }}-
+      - name: Install dependencies
+        run: |
+          julia --project=./benchmark -e '
+            using Pkg;
+            Pkg.develop(PackageSpec(path=pwd()));
+            Pkg.develop(PackageSpec(path=joinpath(pwd(), "CheckedArithmeticCore")));
+            Pkg.instantiate();
+            '
+      - name: Run benchmarks
+        run: julia --project=./benchmark -e 'using BenchmarkCI; BenchmarkCI.judge(project="benchmark")'
+      - name: Post results
+        run: julia --project=./benchmark -e 'using BenchmarkCI; BenchmarkCI.postjudge()'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
