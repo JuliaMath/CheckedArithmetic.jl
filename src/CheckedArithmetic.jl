@@ -1,109 +1,24 @@
 module CheckedArithmetic
 
+using OverflowContexts
 using CheckedArithmeticCore
 import CheckedArithmeticCore: safearg_type, safearg, safeconvert, accumulatortype, acc
 
 using Base.Meta: isexpr
+using Base.Checked: checked_neg, checked_add, checked_sub, checked_mul, checked_abs
+if VERSION ≥ v"1.11-alpha"
+    using Base.Checked: checked_pow
+end
+
 using LinearAlgebra: Factorization, UniformScaling
 using Random: AbstractRNG
 using Dates
 
-export @checked, @check
+export @check
 export accumulatortype, acc # re-export
-
-const op_checked = Dict(
-    Symbol("unary-") => :(Base.Checked.checked_neg),
-    :abs => :(Base.Checked.checked_abs),
-    :+   => :(Base.Checked.checked_add),
-    :-   => :(Base.Checked.checked_sub),
-    :*   => :(Base.Checked.checked_mul),
-    :÷   => :(Base.Checked.checked_div),
-    :div => :(Base.Checked.checked_div),
-    :%   => :(Base.Checked.checked_rem),
-    :rem => :(Base.Checked.checked_rem),
-    :fld => :(Base.Checked.checked_fld),
-    :mod => :(Base.Checked.checked_mod),
-    :cld => :(Base.Checked.checked_cld),
-    )
-
-function replace_op!(expr::Expr, op_map::Dict)
-    if expr.head == :call
-        f, len = expr.args[1], length(expr.args)
-        op = isexpr(f, :.) ? f.args[2].value : f # handle module-scoped functions
-        if op === :+ && len == 2                 # unary +
-            # no action required
-        elseif op === :- && len == 2             # unary -
-            op = get(op_map, Symbol("unary-"), op)
-            if isexpr(f, :.)
-                f.args[2].value = op
-                expr.args[1] = f
-            else
-                expr.args[1] = op
-            end
-        else                                     # arbitrary call
-            op = get(op_map, op, op)
-            if isexpr(f, :.)
-                f.args[2].value = op
-                expr.args[1] = f
-            else
-                expr.args[1] = op
-            end
-        end
-        for a in Iterators.drop(expr.args, 1)
-            if isa(a, Expr)
-                replace_op!(a, op_map)
-            end
-        end
-    else
-        for a in expr.args
-            if isa(a, Expr)
-                replace_op!(a, op_map)
-            end
-        end
-    end
-    return expr
-end
-
-"""
-    @checked expr
-
-Perform all the operations in `expr` using checked arithmetic.
-
-# Examples
-
-```jldoctest
-julia> 0xff + 0x10    # operation that overflows
-0x0f
-
-julia> @checked 0xff + 0x10
-ERROR: OverflowError: 255 + 16 overflowed for type UInt8
-```
-
-You can also wrap method definitions (or blocks of code) in `@checked`:
-
-```jldoctest
-julia> plus(x, y) = x + y; minus(x, y) = x - y
-minus (generic function with 1 method)
-
-julia> @show plus(0xff, 0x10) minus(0x10, 0x20);
-plus(0xff, 0x10) = 0x0f
-minus(0x10, 0x20) = 0xf0
-
-julia> @checked (plus(x, y) = x + y; minus(x, y) = x - y)
-minus (generic function with 1 method)
-
-julia> plus(0xff, 0x10)
-ERROR: OverflowError: 255 + 16 overflowed for type UInt8
-
-julia> minus(0x10, 0x20)
-ERROR: OverflowError: 16 - 32 overflowed for type UInt8
-```
-"""
-macro checked(expr)
-    isa(expr, Expr) || return expr
-    expr = copy(expr)
-    return esc(replace_op!(expr, op_checked))
-end
+export @default_checked, @default_unchecked, @checked, @unchecked,
+    unchecked_neg, unchecked_add, unchecked_sub, unchecked_mul, unchecked_negsub, unchecked_pow, unchecked_abs,
+    checked_neg, checked_add, checked_sub, checked_mul, checked_pow, checked_negsub, checked_abs # re-export
 
 macro check(expr, kws...)
     isexpr(expr, :call) || error("expected :call expression, got ",
