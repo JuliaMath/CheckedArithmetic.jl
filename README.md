@@ -32,6 +32,8 @@ will not detect overflow caused by `f`.
 The [`Base.Checked` module](https://github.com/JuliaLang/julia/blob/master/base/checked.jl) defines numerous checked operations.
 These can be specialized for custom types.
 
+**Note:** `@checked` originates from [OverflowContexts.jl](https://github.com/JuliaMath/OverflowContexts.jl) as of v0.2.1, which includes other functionality not exposed in this package.
+
 ## `@check`
 
 `@check` performs an operation in two different ways,
