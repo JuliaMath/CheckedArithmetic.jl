@@ -23,7 +23,7 @@ jobs:
             julia-version: '1'
             julia-arch: x86
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
