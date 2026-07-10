@@ -8,11 +8,6 @@ Pkg.test("CheckedArithmeticCore")
 
 @test isempty(detect_ambiguities(CheckedArithmetic, Base, Core))
 
-@checked begin
-    plus(x, y) = x + y
-    minus(x, y) = x - y
-end
-
 function sumsquares(A::AbstractArray)
     s = zero(accumulatortype(eltype(A)))
     for a in A
@@ -23,20 +18,8 @@ end
 
 @testset "CheckedArithmetic.jl" begin
     @testset "@checked" begin
-        @test @checked(abs(Int8(-2))) === Int8(2)
-        @test_throws OverflowError @checked(abs(typemin(Int8)))
-        @test @checked(+2) === 2
-        @test @checked(+UInt(2)) === UInt(2)
-        @test @checked(-2) === -2
-        @test_throws OverflowError @checked(-UInt(2))
-        @test @checked(0x10 + 0x20) === 0x30
-        @test_throws OverflowError @checked(0xf0 + 0x20)
-        @test @checked(0x30 - 0x20) === 0x10
-        @test_throws OverflowError @checked(0x10 - 0x20)
-        @test @checked(-7) === -7
-        @test_throws OverflowError @checked(-UInt(7))
-        @test @checked(0x10*0x02) === 0x20
-        @test_throws OverflowError @checked(0x10*0x10)
+        # Julia errors by default, so this is just for security.
+        # OverflowContexts does not test for this.
         @test @checked(7 ÷ 2) === 3
         @test_throws DivideError @checked(typemin(Int8)÷Int8(-1))
         @test @checked(div(0x7, 0x2)) === 0x3
@@ -51,11 +34,6 @@ end
         @test_throws DivideError @checked(mod(typemin(Int8), Int8(0)))
         @test @checked(cld(typemax(Int8), Int8(-1))) === -typemax(Int8)
         @test_throws DivideError @checked(cld(typemin(Int8), Int8(-1)))
-
-        @test plus(0x10, 0x20) === 0x30
-        @test_throws OverflowError plus(0xf0, 0x20)
-        @test minus(0x30, 0x20) === 0x10
-        @test_throws OverflowError minus(0x20, 0x30)
     end
 
     @testset "@check" begin
